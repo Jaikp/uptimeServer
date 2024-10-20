@@ -10,13 +10,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const nodemailer = require("nodemailer");
+require("dotenv").config();
 const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
     secure: false, // true for port 465, false for other ports
     auth: {
         user: "jaikp14@gmail.com",
-        pass: "evdg joyw egke nvmo",
+        pass: process.env.PASS,
     },
 });
 // async..await is not allowed in global scope, must use a wrapper
