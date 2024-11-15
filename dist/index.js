@@ -21,6 +21,7 @@ const CheckUrlStatus = (url) => __awaiter(void 0, void 0, void 0, function* () {
         if (res.status == 200) {
             return "UP";
         }
+        return "DOWN";
     }
     catch (error) {
         return "DOWN";
@@ -31,6 +32,8 @@ const Monitor = () => __awaiter(void 0, void 0, void 0, function* () {
         const monitors = yield prisma.monitor.findMany();
         for (const monitor of monitors) {
             const res = yield CheckUrlStatus(monitor.url);
+            console.log(monitor.url);
+            console.log(res);
             if (res === 'DOWN') {
                 const lastAlert = yield prisma.alert.findFirst({
                     where: {

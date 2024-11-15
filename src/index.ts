@@ -8,7 +8,8 @@ const CheckUrlStatus = async (url : string)=>{
         const res = await fetch(url);
         if(res.status == 200){
             return "UP"
-        }           
+        }
+        return "DOWN"           
     } catch (error) {
         return "DOWN"
     }
@@ -17,9 +18,7 @@ const CheckUrlStatus = async (url : string)=>{
 const Monitor = async ()=>{
 
     try {
-
         const monitors = await prisma.monitor.findMany();
-
         for(const monitor of monitors){
             const res = await CheckUrlStatus(monitor.url);
             if(res === 'DOWN'){
