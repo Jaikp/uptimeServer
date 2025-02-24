@@ -6,6 +6,7 @@ const prisma = new PrismaClient()
 const CheckUrlStatus = async (url : string)=>{
     try {
         const res = await fetch(url);
+        console.log(res);
         if(res.status == 200){
             return "UP"
         }
@@ -21,6 +22,21 @@ const Monitor = async ()=>{
         const monitors = await prisma.monitor.findMany();
         for(const monitor of monitors){
             const res = await CheckUrlStatus(monitor.url);
+            const status = await prisma.monitor.findUnique({
+                where : {
+                    url : monitor.url
+                }
+            })
+            if(res === 'UP' && status?.status=== 'DOWN'){
+                const website = await prisma.monitor.update({
+                    where : {
+                        id : monitor.id
+                    },
+                    data :{
+                        status : "UP"
+                    }
+                })
+            }
             if(res === 'DOWN'){
                 const lastAlert = await prisma.alert.findFirst({
                     where : {

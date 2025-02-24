@@ -18,6 +18,7 @@ const prisma = new client_1.PrismaClient();
 const CheckUrlStatus = (url) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const res = yield fetch(url);
+        console.log(res);
         if (res.status == 200) {
             return "UP";
         }
@@ -32,8 +33,21 @@ const Monitor = () => __awaiter(void 0, void 0, void 0, function* () {
         const monitors = yield prisma.monitor.findMany();
         for (const monitor of monitors) {
             const res = yield CheckUrlStatus(monitor.url);
-            console.log(monitor.url);
-            console.log(res);
+            const status = yield prisma.monitor.findUnique({
+                where: {
+                    url: monitor.url
+                }
+            });
+            if (res === 'UP' && (status === null || status === void 0 ? void 0 : status.status) === 'DOWN') {
+                const website = yield prisma.monitor.update({
+                    where: {
+                        id: monitor.id
+                    },
+                    data: {
+                        status: "UP"
+                    }
+                });
+            }
             if (res === 'DOWN') {
                 const lastAlert = yield prisma.alert.findFirst({
                     where: {

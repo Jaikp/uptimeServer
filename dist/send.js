@@ -14,7 +14,7 @@ require("dotenv").config();
 const transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
-    secure: false, // true for port 465, false for other ports
+    secure: false,
     auth: {
         user: "jaikp14@gmail.com",
         pass: process.env.PASS,
@@ -23,16 +23,14 @@ const transporter = nodemailer.createTransport({
 // async..await is not allowed in global scope, must use a wrapper
 function CreateEmail(email, website) {
     return __awaiter(this, void 0, void 0, function* () {
-        // send mail with defined transport object
         const info = yield transporter.sendMail({
-            from: 'jaikp14@gmail.com', // sender address
-            to: email, // list of receivers
-            subject: "Hello from Uptime", // Subject line
-            text: "You website is down", // plain text body
-            html: `You website ${website.url} is down</b>`, // html body
+            from: 'jaikp14@gmail.com',
+            to: email,
+            subject: "Hello from Uptime",
+            text: "You website is down",
+            html: `You website ${website.url} is down</b>`,
         });
         console.log("Message sent: %s", info);
-        // Message sent: <d786aa62-4e0a-070a-47ed-0b0666549519@ethereal.email>
     });
 }
 exports.default = CreateEmail;
