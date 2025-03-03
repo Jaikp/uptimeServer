@@ -18,7 +18,6 @@ const prisma = new client_1.PrismaClient();
 const CheckUrlStatus = (url) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const res = yield fetch(url);
-        console.log(res);
         if (res.status == 200) {
             return "UP";
         }
@@ -75,6 +74,7 @@ const Monitor = () => __awaiter(void 0, void 0, void 0, function* () {
                         }
                     });
                     yield (0, send_1.default)(user === null || user === void 0 ? void 0 : user.email, website);
+                    console.log("Email sent");
                     yield prisma.alert.create({
                         data: {
                             type: 'EMAIL',

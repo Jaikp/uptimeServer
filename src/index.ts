@@ -6,7 +6,6 @@ const prisma = new PrismaClient()
 const CheckUrlStatus = async (url : string)=>{
     try {
         const res = await fetch(url);
-        console.log(res);
         if(res.status == 200){
             return "UP"
         }
@@ -67,6 +66,7 @@ const Monitor = async ()=>{
                     })
 
                     await CreateEmail(user?.email,website);
+                    console.log("Email sent");
 
                     await prisma.alert.create({
                         data : {
