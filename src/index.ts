@@ -1,5 +1,13 @@
 import { PrismaClient } from '@prisma/client'
-import CreateEmail from './send';
+import { createClient } from 'redis';
+
+const client = createClient();
+
+client.on('error', err => console.log('Redis Client Error', err));
+
+(async () => {
+    await client.connect();
+})();
 
 const prisma = new PrismaClient()
 
@@ -26,7 +34,7 @@ const Monitor = async ()=>{
                     url : monitor.url
                 }
             })
-            if(res === 'UP' && status?.status=== 'DOWN'){
+            if(res === 'UP' && status?.status === 'DOWN'){
                 const website = await prisma.monitor.update({
                     where : {
                         id : monitor.id
@@ -65,8 +73,7 @@ const Monitor = async ()=>{
                         }
                     })
 
-                    await CreateEmail(user?.email,website);
-                    console.log("Email sent");
+                    await client.lPush('email',JSON.stringify({email : user?.email,website : website.url}));
 
                     await prisma.alert.create({
                         data : {
@@ -84,9 +91,10 @@ const Monitor = async ()=>{
     }
 }
 function hello ( ){
-    console.log("done");
     Monitor();
 }
 
 setInterval(hello,10000);
+
+export default client;
 

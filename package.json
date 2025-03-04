@@ -4,7 +4,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "seed": "ts-node --transpile-only prisma/seed.ts"
+    "seed": "ts-node --transpile-only prisma/seed.ts",
+    "build": "tsc -b",
+    "start": "npm run build && node dist/index.js & node dist/send.js"
   },
   "author": "",
   "license": "ISC",
@@ -12,14 +14,16 @@
   "dependencies": {
     "@prisma/client": "^6.4.1",
     "@types/express": "^5.0.0",
-    "axios": "^1.7.7",
+    "axios": "^1.8.1",
     "dotenv": "^16.4.5",
-    "express": "^4.21.1",
+    "express": "^4.21.2",
     "nodemailer": "^6.9.15",
+    "redis": "^4.7.0",
     "twilio": "^5.3.4",
     "typescript": "^5.6.3"
   },
   "devDependencies": {
+    "concurrently": "^9.1.2",
     "prisma": "^6.4.1"
   }
 }

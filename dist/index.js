@@ -8,12 +8,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 const client_1 = require("@prisma/client");
-const send_1 = __importDefault(require("./send"));
+const redis_1 = require("redis");
+const client = (0, redis_1.createClient)();
+client.on('error', err => console.log('Redis Client Error', err));
+(() => __awaiter(void 0, void 0, void 0, function* () {
+    yield client.connect();
+}))();
 const prisma = new client_1.PrismaClient();
 const CheckUrlStatus = (url) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -73,8 +75,7 @@ const Monitor = () => __awaiter(void 0, void 0, void 0, function* () {
                             id: monitor.userId
                         }
                     });
-                    yield (0, send_1.default)(user === null || user === void 0 ? void 0 : user.email, website);
-                    console.log("Email sent");
+                    yield client.lPush('email', JSON.stringify({ email: user === null || user === void 0 ? void 0 : user.email, website: website.url }));
                     yield prisma.alert.create({
                         data: {
                             type: 'EMAIL',
@@ -91,7 +92,7 @@ const Monitor = () => __awaiter(void 0, void 0, void 0, function* () {
     }
 });
 function hello() {
-    console.log("done");
     Monitor();
 }
 setInterval(hello, 10000);
+exports.default = client;

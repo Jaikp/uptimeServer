@@ -1,3 +1,5 @@
+import client from ".";
+
 const nodemailer = require("nodemailer");
 require("dotenv").config();
 
@@ -11,8 +13,22 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// async..await is not allowed in global scope, must use a wrapper
-async function CreateEmail(email: any, website: { id: string; url: string; status: string; frequency: number; userId: string; createdAt: Date; updatedAt: Date; }) {
+
+async function main(){
+    while(true){
+        const emailData = await client.lPop('email');
+        if (emailData) {
+            const { email, website } = JSON.parse(emailData);
+            await CreateEmail(email, website);
+        }
+        else{
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+    }
+}
+
+
+async function CreateEmail(email: any, url: string) {
 
   const info = await transporter.sendMail({
     from: 'jaikp14@gmail.com', 
@@ -79,9 +95,9 @@ async function CreateEmail(email: any, website: { id: string; url: string; statu
         </div>
         <div class="content">
             <p>Hello,</p>
-            <p>We detected that your website <strong>${website.url}</strong> is currently down.</p>
+            <p>We detected that your website <strong>${url}</strong> is currently down.</p>
             <p>Please check your website status and take necessary actions.</p>
-            <a href="${website.url}" class="button">Check Website</a>
+            <a href="${url}" class="button">Check Website</a>
         </div>
         <div class="footer">
             This is an automated message from <strong>Uptime Monitor</strong>. If you need assistance, please contact support.
@@ -91,8 +107,6 @@ async function CreateEmail(email: any, website: { id: string; url: string; statu
 </html>
 `,
   });
-
-  console.log("Message sent: %s", info);
 }
 
-export default CreateEmail;
+main().catch(console.error);

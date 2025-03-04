@@ -8,7 +8,11 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
+const _1 = __importDefault(require("."));
 const nodemailer = require("nodemailer");
 require("dotenv").config();
 const transporter = nodemailer.createTransport({
@@ -20,8 +24,21 @@ const transporter = nodemailer.createTransport({
         pass: process.env.PASS,
     },
 });
-// async..await is not allowed in global scope, must use a wrapper
-function CreateEmail(email, website) {
+function main() {
+    return __awaiter(this, void 0, void 0, function* () {
+        while (true) {
+            const emailData = yield _1.default.lPop('email');
+            if (emailData) {
+                const { email, website } = JSON.parse(emailData);
+                yield CreateEmail(email, website);
+            }
+            else {
+                yield new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+        }
+    });
+}
+function CreateEmail(email, url) {
     return __awaiter(this, void 0, void 0, function* () {
         const info = yield transporter.sendMail({
             from: 'jaikp14@gmail.com',
@@ -88,9 +105,9 @@ function CreateEmail(email, website) {
         </div>
         <div class="content">
             <p>Hello,</p>
-            <p>We detected that your website <strong>${website.url}</strong> is currently down.</p>
+            <p>We detected that your website <strong>${url}</strong> is currently down.</p>
             <p>Please check your website status and take necessary actions.</p>
-            <a href="${website.url}" class="button">Check Website</a>
+            <a href="${url}" class="button">Check Website</a>
         </div>
         <div class="footer">
             This is an automated message from <strong>Uptime Monitor</strong>. If you need assistance, please contact support.
@@ -100,7 +117,6 @@ function CreateEmail(email, website) {
 </html>
 `,
         });
-        console.log("Message sent: %s", info);
     });
 }
-exports.default = CreateEmail;
+main().catch(console.error);
