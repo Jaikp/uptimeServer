@@ -5,7 +5,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed": "ts-node --transpile-only prisma/seed.ts",
-    "build": "tsc -b",
+    "build": "tsc -b && npx prisma generate",
     "start": "npm run build && node dist/index.js & node dist/send.js"
   },
   "author": "",
