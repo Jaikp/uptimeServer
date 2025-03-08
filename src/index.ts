@@ -1,100 +1,93 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@prisma/client';
 import { createClient } from 'redis';
+import { collectDefaultMetrics, register, Gauge } from 'prom-client';
+import express from 'express';
 
-const client = createClient();
+const prisma = new PrismaClient();
+const redisClient = createClient();
 
-client.on('error', err => console.log('Redis Client Error', err));
+redisClient.on('error', (err) => console.log('Redis Client Error', err));
 
 (async () => {
-    await client.connect();
+    await redisClient.connect();
 })();
 
-const prisma = new PrismaClient()
+// Prometheus Setup
+const app = express();
+collectDefaultMetrics(); // Collect default Node.js metrics
 
-const CheckUrlStatus = async (url : string)=>{
+const websiteUptimeGauge = new Gauge({
+    name: 'website_up',
+    help: 'Website status (1 = UP, 0 = DOWN)',
+    labelNames: ['url'],
+});
+
+app.get('/metrics', async (req, res) => {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+});
+
+// Function to Check Website Status
+const CheckUrlStatus = async (url: string): Promise<string> => {
     try {
-        const res = await fetch(url);
-        if(res.status == 200){
-            return "UP"
-        }
-        return "DOWN"           
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000); // Timeout after 5 sec
+        
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeout);
+        
+        return res.status === 200 ? "UP" : "DOWN";
     } catch (error) {
-        return "DOWN"
+        return "DOWN";
     }
-}
+};
 
-const Monitor = async ()=>{
-
+// Monitoring Function
+const Monitor = async () => {
     try {
         const monitors = await prisma.monitor.findMany();
-        for(const monitor of monitors){
-            const res = await CheckUrlStatus(monitor.url);
-            const status = await prisma.monitor.findUnique({
-                where : {
-                    url : monitor.url
-                }
-            })
-            if(res === 'UP' && status?.status === 'DOWN'){
-                const website = await prisma.monitor.update({
-                    where : {
-                        id : monitor.id
-                    },
-                    data :{
-                        status : "UP"
+        for (const monitor of monitors) {
+            const status = await CheckUrlStatus(monitor.url);
+            
+            // Update Prometheus Metrics
+            websiteUptimeGauge.labels(monitor.url).set(status === "UP" ? 1 : 0);
+
+            // Update Database Only if Status Changes
+            if (status !== monitor.status) {
+                await prisma.monitor.update({
+                    where: { id: monitor.id },
+                    data: { status },
+                });
+
+                // Handle Alerting for DOWN Status
+                if (status === "DOWN") {
+                    const lastAlert = await prisma.alert.findFirst({
+                        where: { monitorId: monitor.id, userId: monitor.userId, type: 'EMAIL' },
+                        orderBy: { sentAt: 'desc' }
+                    });
+
+                    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+                    if (!lastAlert || lastAlert.sentAt < oneHourAgo) {
+                        const user = await prisma.user.findUnique({ where: { id: monitor.userId } });
+
+                        await redisClient.lPush('email', JSON.stringify({ email: user?.email, website: monitor.url }));
+
+                        await prisma.alert.create({
+                            data: { type: 'EMAIL', monitorId: monitor.id, userId: monitor.userId }
+                        });
                     }
-                })
-            }
-            if(res === 'DOWN'){
-                const lastAlert = await prisma.alert.findFirst({
-                    where : {
-                        monitorId: monitor.id,
-                        userId: monitor.userId,
-                        type: 'EMAIL'
-                    },
-                    orderBy : {
-                        sentAt: 'desc'
-                    }
-
-                })
-                
-                const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000); 
-                if(!lastAlert || lastAlert.sentAt < oneHourAgo){
-                    const website = await prisma.monitor.update({
-                        where : {
-                            id : monitor.id
-                        },
-                        data :{
-                            status : "DOWN"
-                        }
-                    })
-                    const user = await prisma.user.findUnique({
-                        where : {
-                            id : monitor.userId
-                        }
-                    })
-
-                    await client.lPush('email',JSON.stringify({email : user?.email,website : website.url}));
-
-                    await prisma.alert.create({
-                        data : {
-                            type : 'EMAIL',
-                            monitorId : monitor.id,
-                            userId : monitor.userId
-                        }
-                    })
                 }
             }
         }
-        
     } catch (error) {
-        console.log(error);
+        console.error("Monitoring Error:", error);
     }
-}
-function hello ( ){
-    Monitor();
-}
+};
 
-setInterval(hello,10000);
+// Run Monitor Every 10 Seconds
+setInterval(Monitor, 10000);
 
-export default client;
+// Start Prometheus Metrics Server
+app.listen(3001, () => console.log('Prometheus metrics server running on port 3001'));
 
+export default redisClient;
