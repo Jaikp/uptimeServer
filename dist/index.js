@@ -17,7 +17,14 @@ const redis_1 = require("redis");
 const prom_client_1 = require("prom-client");
 const express_1 = __importDefault(require("express"));
 const prisma = new client_1.PrismaClient();
-const redisClient = (0, redis_1.createClient)();
+const redisClient = (0, redis_1.createClient)({
+    username: 'default',
+    password: 'CmkWtBAuq5hci3mHDphn7zk7pgrF2piO',
+    socket: {
+        host: 'redis-11025.crce182.ap-south-1-1.ec2.redns.redis-cloud.com',
+        port: 11025
+    }
+});
 redisClient.on('error', (err) => console.log('Redis Client Error', err));
 (() => __awaiter(void 0, void 0, void 0, function* () {
     yield redisClient.connect();
