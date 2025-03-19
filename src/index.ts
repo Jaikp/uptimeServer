@@ -1,8 +1,5 @@
 import { PrismaClient } from '@prisma/client';
 import { createClient } from 'redis';
-import { collectDefaultMetrics, register, Gauge } from 'prom-client';
-import express from 'express';
-
 const prisma = new PrismaClient();
 const redisClient = createClient({
     username: 'default',
@@ -19,30 +16,10 @@ redisClient.on('error', (err) => console.log('Redis Client Error', err));
     await redisClient.connect();
 })();
 
-// Prometheus Setup
-const app = express();
-collectDefaultMetrics(); // Collect default Node.js metrics
 
-const websiteUptimeGauge = new Gauge({
-    name: 'website_up',
-    help: 'Website status (1 = UP, 0 = DOWN)',
-    labelNames: ['url'],
-});
-
-app.get('/metrics', async (req, res) => {
-    res.set('Content-Type', register.contentType);
-    res.end(await register.metrics());
-});
-
-// Function to Check Website Status
 const CheckUrlStatus = async (url: string): Promise<string> => {
     try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000); // Timeout after 5 sec
-        
-        const res = await fetch(url, { signal: controller.signal });
-        clearTimeout(timeout);
-        
+        const res = await fetch(url);
         return res.status === 200 ? "UP" : "DOWN";
     } catch (error) {
         return "DOWN";
@@ -55,9 +32,6 @@ const Monitor = async () => {
         const monitors = await prisma.monitor.findMany();
         for (const monitor of monitors) {
             const status = await CheckUrlStatus(monitor.url);
-            
-            // Update Prometheus Metrics
-            websiteUptimeGauge.labels(monitor.url).set(status === "UP" ? 1 : 0);
 
             // Update Database Only if Status Changes
             if (status !== monitor.status) {
@@ -93,8 +67,4 @@ const Monitor = async () => {
 
 // Run Monitor Every 10 Seconds
 setInterval(Monitor, 10000);
-
-// Start Prometheus Metrics Server
-app.listen(3001, () => console.log('Prometheus metrics server running on port 3001'));
-
 export default redisClient;
