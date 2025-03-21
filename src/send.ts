@@ -1,7 +1,12 @@
-import client from ".";
+
+import { createClient } from 'redis';
+import express from 'express';
+const app = express();
+app.use(express.json());
 
 const nodemailer = require("nodemailer");
 require("dotenv").config();
+
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
@@ -13,10 +18,26 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+const redisClient = createClient({
+    username: 'default',
+    password: 'CmkWtBAuq5hci3mHDphn7zk7pgrF2piO',
+    socket: {
+        host: 'redis-11025.crce182.ap-south-1-1.ec2.redns.redis-cloud.com',
+        port: 11025
+    }
+});
+
+
+redisClient.on('error', (err) => console.log('Redis Client Error', err));
+
+(async () => {
+    await redisClient.connect();
+})();
+
 
 async function main(){
     while(true){
-        const emailData = await client.lPop('email');
+        const emailData = await redisClient.lPop('email');
         if (emailData) {
             const { email, website } = JSON.parse(emailData);
             await CreateEmail(email, website);
@@ -108,5 +129,9 @@ async function CreateEmail(email: any, url: string) {
 `,
   });
 }
+app.listen(4000, () => {
+    main().catch(console.error);
+    console.log('Server Running on Port 4000');
+}
+);
 
-main().catch(console.error);

@@ -74,6 +74,8 @@ const Monitor = () => __awaiter(void 0, void 0, void 0, function* () {
     }
 });
 // Run Monitor Every 10 Seconds
-setInterval(Monitor, 10000);
-app.listen(3000, () => console.log('Server Running on Port 3000'));
+app.listen(4000, () => {
+    setInterval(Monitor, 10000);
+    console.log('Server Running on Port 4000');
+});
 exports.default = redisClient;

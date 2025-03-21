@@ -72,8 +72,11 @@ const Monitor = async () => {
 };
 
 // Run Monitor Every 10 Seconds
-setInterval(Monitor, 10000);
 
-app.listen(3000, () => console.log('Server Running on Port 3000'));
 
-export default redisClient;
+app.listen(4000, () => {
+    setInterval(Monitor, 10000);
+    console.log('Server Running on Port 4000');
+}
+);
+
