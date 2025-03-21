@@ -26,56 +26,70 @@ const redisClient = (0, redis_1.createClient)({
         port: 11025
     }
 });
-redisClient.on('error', (err) => console.log('Redis Client Error', err));
-(() => __awaiter(void 0, void 0, void 0, function* () {
-    yield redisClient.connect();
-}))();
+redisClient.on('error', (err) => console.error('Redis Client Error:', err));
 const CheckUrlStatus = (url) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const res = yield fetch(url);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000); // 5s timeout
+        const res = yield fetch(url, { signal: controller.signal });
+        clearTimeout(timeout);
         return res.status === 200 ? "UP" : "DOWN";
     }
     catch (error) {
         return "DOWN";
     }
 });
-// Monitoring Function
-const Monitor = () => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const monitors = yield prisma.monitor.findMany();
-        for (const monitor of monitors) {
-            const status = yield CheckUrlStatus(monitor.url);
-            // Update Database Only if Status Changes
-            if (status !== monitor.status) {
-                yield prisma.monitor.update({
-                    where: { id: monitor.id },
-                    data: { status },
-                });
-                // Handle Alerting for DOWN Status
-                if (status === "DOWN") {
-                    const lastAlert = yield prisma.alert.findFirst({
-                        where: { monitorId: monitor.id, userId: monitor.userId, type: 'EMAIL' },
-                        orderBy: { sentAt: 'desc' }
-                    });
-                    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-                    if (!lastAlert || lastAlert.sentAt < oneHourAgo) {
-                        const user = yield prisma.user.findUnique({ where: { id: monitor.userId } });
-                        yield redisClient.lPush('email', JSON.stringify({ email: user === null || user === void 0 ? void 0 : user.email, website: monitor.url }));
-                        yield prisma.alert.create({
-                            data: { type: 'EMAIL', monitorId: monitor.id, userId: monitor.userId }
+function Monitor() {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            while (true) {
+                console.log('Monitoring...');
+                const monitors = yield prisma.monitor.findMany();
+                for (const monitor of monitors) {
+                    const status = yield CheckUrlStatus(monitor.url);
+                    if (status !== monitor.status) {
+                        yield prisma.monitor.update({
+                            where: { id: monitor.id },
+                            data: { status },
                         });
+                        if (status === "DOWN") {
+                            const lastAlert = yield prisma.alert.findFirst({
+                                where: { monitorId: monitor.id, userId: monitor.userId, type: 'EMAIL' },
+                                orderBy: { sentAt: 'desc' }
+                            });
+                            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+                            if (!lastAlert || lastAlert.sentAt < oneHourAgo) {
+                                const user = yield prisma.user.findFirst({ where: { userId: monitor.userId } });
+                                if (user && user.email) {
+                                    yield redisClient.lPush('email', JSON.stringify({ email: user.email, website: monitor.url }));
+                                    yield prisma.alert.create({
+                                        data: { type: 'EMAIL', monitorId: monitor.id, userId: monitor.userId }
+                                    });
+                                }
+                            }
+                        }
                     }
                 }
+                yield new Promise((resolve) => setTimeout(resolve, 10000)); // Sleep for 10s}
             }
         }
+        catch (error) {
+            console.error("Monitoring Error:", error);
+        }
+    });
+}
+;
+const startServer = () => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        yield redisClient.connect();
+        console.log('Redis connected, starting server...');
+        app.listen(4000, () => {
+            Monitor();
+            console.log('Server running on port 4000');
+        });
     }
     catch (error) {
-        console.error("Monitoring Error:", error);
+        console.error('Failed to start server:', error);
     }
 });
-// Run Monitor Every 10 Seconds
-app.listen(4000, () => {
-    setInterval(Monitor, 10000);
-    console.log('Server Running on Port 4000');
-});
-exports.default = redisClient;
+startServer();

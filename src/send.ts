@@ -1,22 +1,24 @@
-
 import { createClient } from 'redis';
 import express from 'express';
+import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+
+dotenv.config(); // Load environment variables
+
 const app = express();
 app.use(express.json());
 
-const nodemailer = require("nodemailer");
-require("dotenv").config();
-
-
+// Email Transporter Setup
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 587,
   secure: false,
   auth: {
-    user: "jaikp14@gmail.com",
-    pass: process.env.PASS,
+    user: "jaikp14@gmail.com",  // Use env variable
+    pass: process.env.PASS,  // Use env variable
   },
 });
+
 
 const redisClient = createClient({
     username: 'default',
@@ -27,111 +29,59 @@ const redisClient = createClient({
     }
 });
 
-
-redisClient.on('error', (err) => console.log('Redis Client Error', err));
+redisClient.on('error', (err) => console.error('Redis Client Error:', err));
 
 (async () => {
-    await redisClient.connect();
+  await redisClient.connect();
 })();
 
-
-async function main(){
-    while(true){
-        const emailData = await redisClient.lPop('email');
-        if (emailData) {
-            const { email, website } = JSON.parse(emailData);
-            await CreateEmail(email, website);
-        }
-        else{
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
+// Main Function for Email Queue Processing
+async function processEmailQueue() {
+  while (true) {
+    try {
+      const emailData = await redisClient.lPop('email');
+      console.log(emailData);
+      if (emailData) {
+        const { email, website } = JSON.parse(emailData);
+        await sendEmailNotification(email, website);
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 2000)); // Sleep for 2s if queue is empty
+      }
+    } catch (error) {
+      console.error("Error processing email queue:", error);
     }
+  }
 }
 
-
-async function CreateEmail(email: any, url: string) {
-
-  const info = await transporter.sendMail({
-    from: 'jaikp14@gmail.com', 
-    to: email,
-    subject: "Hello from Uptime",
-    text: "You website is down",
-    html: `
-    <!DOCTYPE html>
-<html>
-<head>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            max-width: 600px;
-            margin: 20px auto;
-            background: #ffffff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        .header {
-            background-color: #ff4d4d;
-            color: white;
-            text-align: center;
-            padding: 15px;
-            font-size: 20px;
-            border-radius: 8px 8px 0 0;
-        }
-        .content {
-            padding: 20px;
-            font-size: 16px;
-            color: #333;
-            text-align: center;
-        }
-        .button {
-            display: inline-block;
-            padding: 12px 20px;
-            margin: 20px 0;
-            color: white;
-            background-color: #ff4d4d;
-            text-decoration: none;
-            font-weight: bold;
-            border-radius: 5px;
-        }
-        .footer {
-            font-size: 14px;
-            color: #777;
-            text-align: center;
-            padding: 15px;
-            border-top: 1px solid #ddd;
-            margin-top: 20px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            ⚠️ Website Down Alert
+// Function to Send Email
+async function sendEmailNotification(email: string, url: string) {
+  try {
+    await transporter.sendMail({
+      from: "jaikp14@gmail.com", 
+      to: email,
+      subject: "🚨 Website Down Alert!",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);">
+          <h2 style="background-color: #ff4d4d; color: white; text-align: center; padding: 15px; border-radius: 8px 8px 0 0;">⚠️ Website Down Alert</h2>
+          <p>Hello,</p>
+          <p>Your website <strong>${url}</strong> is currently down.</p>
+          <p>Please check its status and take necessary action.</p>
+          <p style="text-align: center;">
+            <a href="${url}" style="display: inline-block; padding: 12px 20px; background: #ff4d4d; color: white; text-decoration: none; font-weight: bold; border-radius: 5px;">Check Website</a>
+          </p>
+          <hr>
+          <p style="font-size: 12px; text-align: center; color: #777;">This is an automated alert from <strong>Uptime Monitor</strong>. Contact support if you need assistance.</p>
         </div>
-        <div class="content">
-            <p>Hello,</p>
-            <p>We detected that your website <strong>${url}</strong> is currently down.</p>
-            <p>Please check your website status and take necessary actions.</p>
-            <a href="${url}" class="button">Check Website</a>
-        </div>
-        <div class="footer">
-            This is an automated message from <strong>Uptime Monitor</strong>. If you need assistance, please contact support.
-        </div>
-    </div>
-</body>
-</html>
-`,
-  });
+      `,
+    });
+    console.log(`📧 Alert sent to ${email} for ${url}`);
+  } catch (error) {
+    console.error("❌ Failed to send email:", error);
+  }
 }
-app.listen(4000, () => {
-    main().catch(console.error);
-    console.log('Server Running on Port 4000');
-}
-);
 
+// Start Express Server
+app.listen(4001, () => {
+  console.log('🚀 Server Running on Port 4000');
+  processEmailQueue().catch(console.error); // Start the email queue processor
+});
