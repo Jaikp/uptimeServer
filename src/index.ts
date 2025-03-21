@@ -1,6 +1,11 @@
 import { PrismaClient } from '@prisma/client';
 import { createClient } from 'redis';
+import express from 'express';
 const prisma = new PrismaClient();
+
+const app = express();
+
+app.use(express.json());
 const redisClient = createClient({
     username: 'default',
     password: 'CmkWtBAuq5hci3mHDphn7zk7pgrF2piO',
@@ -9,6 +14,7 @@ const redisClient = createClient({
         port: 11025
     }
 });
+
 
 redisClient.on('error', (err) => console.log('Redis Client Error', err));
 
@@ -67,4 +73,7 @@ const Monitor = async () => {
 
 // Run Monitor Every 10 Seconds
 setInterval(Monitor, 10000);
+
+app.listen(3000, () => console.log('Server Running on Port 3000'));
+
 export default redisClient;
