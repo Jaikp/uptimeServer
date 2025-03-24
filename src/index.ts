@@ -39,13 +39,13 @@ async function Monitor(){
             const monitors = await prisma.monitor.findMany();
             for (const monitor of monitors) {
                 const status = await CheckUrlStatus(monitor.url);
-
+                
                 if (status !== monitor.status) {
                     await prisma.monitor.update({
                         where: { id: monitor.id },
                         data: { status },
                     });
-
+                }
                     if (status === "DOWN") {
                         const lastAlert = await prisma.alert.findFirst({
                             where: { monitorId: monitor.id, userId: monitor.userId, type: 'EMAIL' },
@@ -65,9 +65,9 @@ async function Monitor(){
                             }
                         }
                     }
-                }
+                
             }
-            await new Promise((resolve) => setTimeout(resolve, 10000)); // Sleep for 10s}
+            await new Promise((resolve) => setTimeout(resolve, 180000));
         }
     } catch (error) {
         console.error("Monitoring Error:", error);

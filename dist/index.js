@@ -47,25 +47,27 @@ function Monitor() {
                 const monitors = yield prisma.monitor.findMany();
                 for (const monitor of monitors) {
                     const status = yield CheckUrlStatus(monitor.url);
+                    console.log(monitor);
                     if (status !== monitor.status) {
                         yield prisma.monitor.update({
                             where: { id: monitor.id },
                             data: { status },
                         });
-                        if (status === "DOWN") {
-                            const lastAlert = yield prisma.alert.findFirst({
-                                where: { monitorId: monitor.id, userId: monitor.userId, type: 'EMAIL' },
-                                orderBy: { sentAt: 'desc' }
-                            });
-                            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-                            if (!lastAlert || lastAlert.sentAt < oneHourAgo) {
-                                const user = yield prisma.user.findFirst({ where: { userId: monitor.userId } });
-                                if (user && user.email) {
-                                    yield redisClient.lPush('email', JSON.stringify({ email: user.email, website: monitor.url }));
-                                    yield prisma.alert.create({
-                                        data: { type: 'EMAIL', monitorId: monitor.id, userId: monitor.userId }
-                                    });
-                                }
+                    }
+                    if (status === "DOWN") {
+                        const lastAlert = yield prisma.alert.findFirst({
+                            where: { monitorId: monitor.id, userId: monitor.userId, type: 'EMAIL' },
+                            orderBy: { sentAt: 'desc' }
+                        });
+                        console.log(lastAlert);
+                        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+                        if (!lastAlert || lastAlert.sentAt < oneHourAgo) {
+                            const user = yield prisma.user.findFirst({ where: { userId: monitor.userId } });
+                            if (user && user.email) {
+                                yield redisClient.lPush('email', JSON.stringify({ email: user.email, website: monitor.url }));
+                                yield prisma.alert.create({
+                                    data: { type: 'EMAIL', monitorId: monitor.id, userId: monitor.userId }
+                                });
                             }
                         }
                     }
