@@ -67,7 +67,7 @@ async function Monitor(){
                     }
                 
             }
-            await new Promise((resolve) => setTimeout(resolve,18000000));
+            await new Promise((resolve) => setTimeout(resolve,180000));
         }
     } catch (error) {
         console.error("Monitoring Error:", error);
