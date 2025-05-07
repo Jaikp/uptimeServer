@@ -9,10 +9,10 @@ app.use(express.json());
 
 const redisClient = createClient({
     username: 'default',
-    password: 'CmkWtBAuq5hci3mHDphn7zk7pgrF2piO',
+    password: 'IC3KAHoABvswkL40F8pEPxubmb1bT9C6',
     socket: {
-        host: 'redis-11025.crce182.ap-south-1-1.ec2.redns.redis-cloud.com',
-        port: 11025
+        host: 'redis-19458.c305.ap-south-1-1.ec2.redns.redis-cloud.com',
+        port: 19458
     }
 });
 
